@@ -74,8 +74,9 @@ function normalizeSubject(
   subjectMaster: SubjectMaster
 ): { normalizedSubject: string; color: string; isUnmatched: boolean } {
   const gradeData = subjectMaster[schoolLevel]?.[grade];
+  
   if (!gradeData) {
-    return { normalizedSubject: subject, color: '#EF4444', isUnmatched: true };
+    return { normalizedSubject: subject, color: '#FFFFFF', isUnmatched: true };
   }
 
   for (const [canonicalSubject, data] of Object.entries(gradeData)) {
@@ -98,7 +99,7 @@ function normalizeSubject(
     }
   }
 
-  return { normalizedSubject: subject, color: '#EF4444', isUnmatched: true };
+  return { normalizedSubject: subject, color: '#FFFFFF', isUnmatched: true };
 }
 
 const timetablesStorage: Record<string, unknown> = {};
@@ -155,12 +156,12 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
           content: [
             {
               type: "text",
-              text: `Please analyze this timetable image and extract the schedule information. Return a JSON object with the following structure:
+              text: `Please analyze this timetable image and extract the schedule information. IMPORTANT: Preserve the original language of subject names exactly as they appear in the image - do not translate them to English. Return a JSON object with the following structure:
               {
                 "title": "Schedule title if visible",
                 "schedule": {
-                  "Monday": [{"time": "09:00-10:00", "subject": "Math", "room": "A101"}],
-                  "Tuesday": [{"time": "09:00-10:00", "subject": "English", "room": "B202"}],
+                  "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101"}],
+                  "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202"}],
                   "Wednesday": [],
                   "Thursday": [],
                   "Friday": [],
@@ -168,7 +169,7 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
                   "Sunday": []
                 }
               }
-              Extract all visible time slots, subjects, and room numbers. If information is unclear, use your best judgment.`
+              Extract all visible time slots, subjects, and room numbers. Keep subject names in their original language (Japanese, English, etc.) exactly as written in the image. If information is unclear, use your best judgment.`
             },
             {
               type: "image_url",
@@ -251,7 +252,7 @@ async function processExcelFile(file: File, schoolLevel: string, grade: string) 
       messages: [
         {
           role: "user",
-          content: `Please analyze this Excel timetable data and convert it to a structured JSON format. The data is:
+          content: `Please analyze this Excel timetable data and convert it to a structured JSON format. IMPORTANT: Preserve the original language of subject names exactly as they appear in the data - do not translate them to English. The data is:
 
 ${excelText}
 
@@ -259,8 +260,8 @@ Return a JSON object with the following structure:
 {
   "title": "Schedule title if identifiable",
   "schedule": {
-    "Monday": [{"time": "09:00-10:00", "subject": "Math", "room": "A101"}],
-    "Tuesday": [{"time": "09:00-10:00", "subject": "English", "room": "B202"}],
+    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101"}],
+    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202"}],
     "Wednesday": [],
     "Thursday": [],
     "Friday": [],
@@ -269,7 +270,7 @@ Return a JSON object with the following structure:
   }
 }
 
-Extract all time slots, subjects, and room information. Organize by weekdays. If the format is unclear, use your best judgment to structure the data appropriately.`
+Extract all time slots, subjects, and room information. Keep subject names in their original language (Japanese, English, etc.) exactly as written in the data. Organize by weekdays. If the format is unclear, use your best judgment to structure the data appropriately.`
         }
       ],
       max_tokens: 1000

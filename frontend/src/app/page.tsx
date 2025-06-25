@@ -183,7 +183,7 @@ export default function Home() {
                               key={index}
                               className={`border rounded-md p-3 ${
                                 entry.isUnmatched 
-                                  ? 'bg-red-50 border-red-300' 
+                                  ? 'bg-white border-gray-300' 
                                   : 'border-gray-200'
                               }`}
                               style={entry.subjectColor && !entry.isUnmatched ? {
@@ -200,11 +200,6 @@ export default function Home() {
                               {entry.room && (
                                 <div className="text-sm text-gray-600">
                                   Room: {entry.room}
-                                </div>
-                              )}
-                              {entry.isUnmatched && (
-                                <div className="text-xs text-red-600 mt-1">
-                                  Original: {entry.subject}
                                 </div>
                               )}
                             </div>
