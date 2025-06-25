@@ -25,12 +25,41 @@ async function loadSubjectMaster(): Promise<SubjectMaster> {
     return subjectMasterCache;
   }
   
-  const fs = await import('fs');
-  const path = await import('path');
-  const filePath = path.join(process.cwd(), 'public', 'subject_master_full.json');
-  const fileContent = fs.readFileSync(filePath, 'utf-8');
-  subjectMasterCache = JSON.parse(fileContent);
-  return subjectMasterCache!;
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    
+    let filePath = path.join(process.cwd(), 'public', 'subject_master_full.json');
+    
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(process.cwd(), '..', '..', '..', 'public', 'subject_master_full.json');
+    }
+    
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(__dirname, '..', '..', '..', '..', 'public', 'subject_master_full.json');
+    }
+    
+    if (!fs.existsSync(filePath)) {
+      try {
+        const response = await fetch('/subject_master_full.json');
+        if (response.ok) {
+          const jsonData = await response.json();
+          subjectMasterCache = jsonData;
+          return subjectMasterCache!;
+        }
+      } catch (fetchError) {
+        console.error('Fetch fallback failed:', fetchError);
+      }
+    }
+    
+    const fileContent = fs.readFileSync(filePath, 'utf-8');
+    subjectMasterCache = JSON.parse(fileContent);
+    return subjectMasterCache!;
+  } catch (error) {
+    console.error('Error loading subject master:', error);
+    subjectMasterCache = { elementary: {}, junior: {} };
+    return subjectMasterCache;
+  }
 }
 
 function extractColorHex(colorString: string): string {
