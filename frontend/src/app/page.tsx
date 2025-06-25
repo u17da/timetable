@@ -7,6 +7,9 @@ interface TimetableEntry {
   time: string;
   subject: string;
   room: string;
+  normalizedSubject?: string;
+  subjectColor?: string;
+  isUnmatched?: boolean;
 }
 
 interface TimetableData {
@@ -20,6 +23,7 @@ export default function Home() {
   const [timetableData, setTimetableData] = useState<TimetableData | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedGrade, setSelectedGrade] = useState<string>('小学1年');
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -31,6 +35,22 @@ export default function Home() {
     try {
       const formData = new FormData();
       formData.append('file', file);
+      
+      const gradeMapping: Record<string, {schoolLevel: string, grade: string}> = {
+        '小学1年': {schoolLevel: 'elementary', grade: '1'},
+        '小学2年': {schoolLevel: 'elementary', grade: '2'},
+        '小学3年': {schoolLevel: 'elementary', grade: '3'},
+        '小学4年': {schoolLevel: 'elementary', grade: '4'},
+        '小学5年': {schoolLevel: 'elementary', grade: '5'},
+        '小学6年': {schoolLevel: 'elementary', grade: '6'},
+        '中学1年': {schoolLevel: 'junior', grade: '1'},
+        '中学2年': {schoolLevel: 'junior', grade: '2'},
+        '中学3年': {schoolLevel: 'junior', grade: '3'},
+      };
+      
+      const mapping = gradeMapping[selectedGrade];
+      formData.append('schoolLevel', mapping.schoolLevel);
+      formData.append('grade', mapping.grade);
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -76,6 +96,27 @@ export default function Home() {
                 <p className="text-gray-500 mb-6">
                   Drag and drop or click to select a photo or Excel file
                 </p>
+                
+                <div className="flex justify-center mb-6">
+                  <div className="flex flex-col">
+                    <label className="text-sm font-medium text-gray-700 mb-2">学年選択</label>
+                    <select
+                      value={selectedGrade}
+                      onChange={(e) => setSelectedGrade(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="小学1年">小学1年</option>
+                      <option value="小学2年">小学2年</option>
+                      <option value="小学3年">小学3年</option>
+                      <option value="小学4年">小学4年</option>
+                      <option value="小学5年">小学5年</option>
+                      <option value="小学6年">小学6年</option>
+                      <option value="中学1年">中学1年</option>
+                      <option value="中学2年">中学2年</option>
+                      <option value="中学3年">中学3年</option>
+                    </select>
+                  </div>
+                </div>
                 
                 <div className="flex justify-center gap-4 mb-6">
                   <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -140,17 +181,30 @@ export default function Home() {
                           {timetableData.schedule[day].map((entry, index) => (
                             <div
                               key={index}
-                              className="bg-blue-50 border border-blue-200 rounded-md p-3"
+                              className={`border rounded-md p-3 ${
+                                entry.isUnmatched 
+                                  ? 'bg-red-50 border-red-300' 
+                                  : 'border-gray-200'
+                              }`}
+                              style={entry.subjectColor && !entry.isUnmatched ? {
+                                backgroundColor: entry.subjectColor,
+                                borderColor: entry.subjectColor
+                              } : {}}
                             >
-                              <div className="text-sm font-medium text-blue-800">
+                              <div className="text-sm font-medium text-gray-600">
                                 {entry.time}
                               </div>
                               <div className="text-gray-800 font-semibold">
-                                {entry.subject}
+                                {entry.normalizedSubject || entry.subject}
                               </div>
                               {entry.room && (
                                 <div className="text-sm text-gray-600">
                                   Room: {entry.room}
+                                </div>
+                              )}
+                              {entry.isUnmatched && (
+                                <div className="text-xs text-red-600 mt-1">
+                                  Original: {entry.subject}
                                 </div>
                               )}
                             </div>

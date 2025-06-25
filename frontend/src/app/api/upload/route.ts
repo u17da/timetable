@@ -7,12 +7,79 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+interface SubjectMaster {
+  [schoolLevel: string]: {
+    [grade: string]: {
+      [subject: string]: {
+        aliases: string[];
+        color: string;
+      };
+    };
+  };
+}
+
+let subjectMasterCache: SubjectMaster | null = null;
+
+async function loadSubjectMaster(): Promise<SubjectMaster> {
+  if (subjectMasterCache) {
+    return subjectMasterCache;
+  }
+  
+  const fs = await import('fs');
+  const path = await import('path');
+  const filePath = path.join(process.cwd(), 'public', 'subject_master_full.json');
+  const fileContent = fs.readFileSync(filePath, 'utf-8');
+  subjectMasterCache = JSON.parse(fileContent);
+  return subjectMasterCache!;
+}
+
+function extractColorHex(colorString: string): string {
+  const match = colorString.match(/^#[0-9A-Fa-f]{6}/);
+  return match ? match[0] : '#E5E7EB';
+}
+
+function normalizeSubject(
+  subject: string, 
+  schoolLevel: string, 
+  grade: string, 
+  subjectMaster: SubjectMaster
+): { normalizedSubject: string; color: string; isUnmatched: boolean } {
+  const gradeData = subjectMaster[schoolLevel]?.[grade];
+  if (!gradeData) {
+    return { normalizedSubject: subject, color: '#EF4444', isUnmatched: true };
+  }
+
+  for (const [canonicalSubject, data] of Object.entries(gradeData)) {
+    if (data.aliases.includes(subject)) {
+      return {
+        normalizedSubject: canonicalSubject,
+        color: extractColorHex(data.color),
+        isUnmatched: false
+      };
+    }
+  }
+
+  for (const [canonicalSubject, data] of Object.entries(gradeData)) {
+    if (canonicalSubject.includes(subject) || subject.includes(canonicalSubject)) {
+      return {
+        normalizedSubject: canonicalSubject,
+        color: extractColorHex(data.color),
+        isUnmatched: false
+      };
+    }
+  }
+
+  return { normalizedSubject: subject, color: '#EF4444', isUnmatched: true };
+}
+
 const timetablesStorage: Record<string, unknown> = {};
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const schoolLevel = formData.get('schoolLevel') as string || 'elementary';
+    const grade = formData.get('grade') as string || '1';
     
     if (!file) {
       return NextResponse.json(
@@ -22,12 +89,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (file.type.startsWith('image/')) {
-      return await processImageFile(file);
+      return await processImageFile(file, schoolLevel, grade);
     } else if (
       file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
       file.type === 'application/vnd.ms-excel'
     ) {
-      return await processExcelFile(file);
+      return await processExcelFile(file, schoolLevel, grade);
     } else {
       return NextResponse.json(
         { error: 'Unsupported file type. Please upload an image or Excel file.' },
@@ -43,7 +110,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processImageFile(file: File) {
+async function processImageFile(file: File, schoolLevel: string, grade: string) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
@@ -105,6 +172,22 @@ async function processImageFile(file: File) {
       }
     }
 
+    const subjectMaster = await loadSubjectMaster();
+    if (timetableData.schedule) {
+      for (const [, entries] of Object.entries(timetableData.schedule)) {
+        if (Array.isArray(entries)) {
+          for (const entry of entries) {
+            if (entry.subject) {
+              const normalized = normalizeSubject(entry.subject, schoolLevel, grade, subjectMaster);
+              entry.normalizedSubject = normalized.normalizedSubject;
+              entry.subjectColor = normalized.color;
+              entry.isUnmatched = normalized.isUnmatched;
+            }
+          }
+        }
+      }
+    }
+
     const fileId = `img_${Object.keys(timetablesStorage).length}`;
     timetablesStorage[fileId] = timetableData;
 
@@ -122,7 +205,7 @@ async function processImageFile(file: File) {
   }
 }
 
-async function processExcelFile(file: File) {
+async function processExcelFile(file: File, schoolLevel: string, grade: string) {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer);
@@ -178,6 +261,22 @@ Extract all time slots, subjects, and room information. Organize by weekdays. If
           timetableData = JSON.parse(simpleJsonMatch[0]);
         } else {
           throw new Error('Failed to parse OpenAI response as JSON');
+        }
+      }
+    }
+
+    const subjectMaster = await loadSubjectMaster();
+    if (timetableData.schedule) {
+      for (const [, entries] of Object.entries(timetableData.schedule)) {
+        if (Array.isArray(entries)) {
+          for (const entry of entries) {
+            if (entry.subject) {
+              const normalized = normalizeSubject(entry.subject, schoolLevel, grade, subjectMaster);
+              entry.normalizedSubject = normalized.normalizedSubject;
+              entry.subjectColor = normalized.color;
+              entry.isUnmatched = normalized.isUnmatched;
+            }
+          }
         }
       }
     }
