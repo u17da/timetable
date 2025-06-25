@@ -34,7 +34,7 @@ export default function Home() {
 
       const apiUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
         ? 'https://app-cnignukt.fly.dev' 
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
+        : 'http://localhost:8000';
 
       const response = await fetch(`${apiUrl}/upload`, {
         method: 'POST',

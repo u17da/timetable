@@ -92,7 +92,20 @@ async def process_image_file(file: UploadFile) -> JSONResponse:
         )
         
         content = response.choices[0].message.content
-        timetable_data = json.loads(content)
+        
+        try:
+            timetable_data = json.loads(content)
+        except json.JSONDecodeError:
+            import re
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+            if json_match:
+                timetable_data = json.loads(json_match.group(1))
+            else:
+                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                if json_match:
+                    timetable_data = json.loads(json_match.group(0))
+                else:
+                    raise json.JSONDecodeError("No valid JSON found in OpenAI response", content, 0)
         
         file_id = f"img_{len(timetables_storage)}"
         timetables_storage[file_id] = timetable_data
@@ -148,7 +161,20 @@ Extract all time slots, subjects, and room information. Organize by weekdays. If
         )
         
         content = response.choices[0].message.content
-        timetable_data = json.loads(content)
+        
+        try:
+            timetable_data = json.loads(content)
+        except json.JSONDecodeError:
+            import re
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+            if json_match:
+                timetable_data = json.loads(json_match.group(1))
+            else:
+                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                if json_match:
+                    timetable_data = json.loads(json_match.group(0))
+                else:
+                    raise json.JSONDecodeError("No valid JSON found in OpenAI response", content, 0)
         
         file_id = f"excel_{len(timetables_storage)}"
         timetables_storage[file_id] = timetable_data
