@@ -32,11 +32,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const apiUrl = typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-        ? 'https://app-cnignukt.fly.dev' 
-        : (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000');
-
-      const response = await fetch(`${apiUrl}/upload`, {
+      const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });

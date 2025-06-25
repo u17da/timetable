@@ -11,8 +11,11 @@
   "dependencies": {
     "lucide-react": "^0.523.0",
     "next": "15.3.4",
+    "openai": "^4.0.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "sharp": "^0.33.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
