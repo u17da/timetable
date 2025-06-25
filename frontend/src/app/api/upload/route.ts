@@ -22,6 +22,7 @@ let subjectMasterCache: SubjectMaster | null = null;
 
 async function loadSubjectMaster(): Promise<SubjectMaster> {
   if (subjectMasterCache) {
+    console.log('Using cached subject master');
     return subjectMasterCache;
   }
   
@@ -30,21 +31,28 @@ async function loadSubjectMaster(): Promise<SubjectMaster> {
     const path = await import('path');
     
     let filePath = path.join(process.cwd(), 'public', 'subject_master_full.json');
+    console.log('Trying path 1:', filePath);
     
     if (!fs.existsSync(filePath)) {
       filePath = path.join(process.cwd(), '..', '..', '..', 'public', 'subject_master_full.json');
+      console.log('Trying path 2:', filePath);
     }
     
     if (!fs.existsSync(filePath)) {
       filePath = path.join(__dirname, '..', '..', '..', '..', 'public', 'subject_master_full.json');
+      console.log('Trying path 3:', filePath);
     }
     
     if (!fs.existsSync(filePath)) {
+      console.log('File not found, trying fetch fallback');
       try {
         const response = await fetch('/subject_master_full.json');
         if (response.ok) {
           const jsonData = await response.json();
           subjectMasterCache = jsonData;
+          console.log('Subject master loaded via fetch, keys:', Object.keys(subjectMasterCache!));
+          console.log('Elementary grades:', Object.keys(subjectMasterCache!.elementary || {}));
+          console.log('Junior grades:', Object.keys(subjectMasterCache!.junior || {}));
           return subjectMasterCache!;
         }
       } catch (fetchError) {
@@ -52,12 +60,17 @@ async function loadSubjectMaster(): Promise<SubjectMaster> {
       }
     }
     
+    console.log('Loading subject master from file:', filePath);
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     subjectMasterCache = JSON.parse(fileContent);
+    console.log('Subject master loaded from file, keys:', Object.keys(subjectMasterCache!));
+    console.log('Elementary grades:', Object.keys(subjectMasterCache!.elementary || {}));
+    console.log('Junior grades:', Object.keys(subjectMasterCache!.junior || {}));
     return subjectMasterCache!;
   } catch (error) {
     console.error('Error loading subject master:', error);
     subjectMasterCache = { elementary: {}, junior: {} };
+    console.log('Using empty fallback subject master');
     return subjectMasterCache;
   }
 }
@@ -73,14 +86,22 @@ function normalizeSubject(
   grade: string, 
   subjectMaster: SubjectMaster
 ): { normalizedSubject: string; color: string; isUnmatched: boolean } {
+  console.log(`Normalizing subject: "${subject}" for ${schoolLevel} grade ${grade}`);
+  
   const gradeData = subjectMaster[schoolLevel]?.[grade];
+  console.log('Grade data found:', !!gradeData);
+  if (gradeData) {
+    console.log('Available subjects in grade data:', Object.keys(gradeData));
+  }
   
   if (!gradeData) {
+    console.log('No grade data found, returning unmatched');
     return { normalizedSubject: subject, color: '#FFFFFF', isUnmatched: true };
   }
 
   for (const [canonicalSubject, data] of Object.entries(gradeData)) {
     if (data.aliases.includes(subject)) {
+      console.log(`Found exact alias match: "${subject}" -> "${canonicalSubject}"`);
       return {
         normalizedSubject: canonicalSubject,
         color: extractColorHex(data.color),
@@ -91,6 +112,7 @@ function normalizeSubject(
 
   for (const [canonicalSubject, data] of Object.entries(gradeData)) {
     if (canonicalSubject.includes(subject) || subject.includes(canonicalSubject)) {
+      console.log(`Found fuzzy match: "${subject}" -> "${canonicalSubject}"`);
       return {
         normalizedSubject: canonicalSubject,
         color: extractColorHex(data.color),
@@ -99,6 +121,7 @@ function normalizeSubject(
     }
   }
 
+  console.log(`No match found for subject: "${subject}"`);
   return { normalizedSubject: subject, color: '#FFFFFF', isUnmatched: true };
 }
 
