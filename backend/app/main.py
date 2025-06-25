@@ -12,6 +12,7 @@ import json
 from typing import Dict, Any, List
 
 load_dotenv()
+print(f"DEBUG: OPENAI_API_KEY from environment: {os.getenv('OPENAI_API_KEY')[:20]}...{os.getenv('OPENAI_API_KEY')[-10:] if os.getenv('OPENAI_API_KEY') else 'None'}")
 
 app = FastAPI()
 
@@ -24,7 +25,9 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+openai_api_key = os.getenv("OPENAI_API_KEY")
+print(f"DEBUG: OpenAI client initialization with key: {openai_api_key[:20]}...{openai_api_key[-10:] if openai_api_key else 'None'}")
+openai_client = OpenAI(api_key=openai_api_key)
 
 timetables_storage: Dict[str, Any] = {}
 
@@ -36,14 +39,20 @@ async def healthz():
 async def upload_file(file: UploadFile = File(...)):
     """Upload and parse a timetable file (image or Excel)"""
     try:
+        print(f"DEBUG: Received file upload - filename: {file.filename}, content_type: {file.content_type}, size: {file.size}")
+        
         if file.content_type.startswith('image/'):
+            print("DEBUG: Processing as image file")
             return await process_image_file(file)
         elif file.content_type in ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel']:
+            print("DEBUG: Processing as Excel file")
             return await process_excel_file(file)
         else:
+            print(f"DEBUG: Unsupported file type: {file.content_type}")
             raise HTTPException(status_code=400, detail="Unsupported file type. Please upload an image or Excel file.")
     
     except Exception as e:
+        print(f"DEBUG: Exception in upload_file: {type(e).__name__}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
 async def process_image_file(file: UploadFile) -> JSONResponse:
@@ -56,6 +65,7 @@ async def process_image_file(file: UploadFile) -> JSONResponse:
         image.save(buffered, format="PNG")
         img_base64 = base64.b64encode(buffered.getvalue()).decode()
         
+        print(f"DEBUG: About to call OpenAI API with client using key: {openai_client.api_key[:20]}...{openai_client.api_key[-10:] if openai_client.api_key else 'None'}")
         response = openai_client.chat.completions.create(
             model="gpt-4o",
             messages=[
