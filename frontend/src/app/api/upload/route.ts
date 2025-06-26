@@ -649,12 +649,15 @@ const EMBEDDED_SUBJECT_MASTER: SubjectMaster = {
 async function loadSubjectMaster(useJsonFile: boolean = false): Promise<SubjectMaster> {
   if (useJsonFile) {
     try {
-      const response = await fetch('/subject_master_full.json');
-      if (response.ok) {
-        return await response.json();
-      }
-    } catch {
-      console.log('Failed to load JSON file, falling back to embedded data');
+      const fs = await import('fs');
+      const path = await import('path');
+      const filePath = path.join(process.cwd(), 'public', 'subject_master_full.json');
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      const jsonData = JSON.parse(fileContent);
+      console.log('Successfully loaded external JSON file with', Object.keys(jsonData).length, 'school levels');
+      return jsonData;
+    } catch (error) {
+      console.log('Failed to load JSON file, falling back to embedded data:', error);
     }
   }
   return EMBEDDED_SUBJECT_MASTER;
