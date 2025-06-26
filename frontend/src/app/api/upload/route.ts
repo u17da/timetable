@@ -652,13 +652,18 @@ async function loadSubjectMaster(useJsonFile: boolean = false): Promise<SubjectM
       const fs = await import('fs');
       const path = await import('path');
       const filePath = path.join(process.cwd(), 'public', 'subject_master_full.json');
+      console.log('Attempting to load external JSON file from:', filePath);
       const fileContent = fs.readFileSync(filePath, 'utf8');
       const jsonData = JSON.parse(fileContent);
       console.log('Successfully loaded external JSON file with', Object.keys(jsonData).length, 'school levels');
       console.log('Available school levels:', Object.keys(jsonData));
+      if (jsonData.elementary && jsonData.elementary['1']) {
+        console.log('Elementary grade 1 canonical subjects:', Object.keys(jsonData.elementary['1']));
+      }
       return jsonData;
     } catch (error) {
       console.log('Failed to load JSON file, falling back to embedded data:', error);
+      console.log('Error details:', error instanceof Error ? error.message : 'Unknown error');
     }
   }
   console.log('Using embedded subject master data');
@@ -793,6 +798,8 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
     console.log(`Loading subjects for ${schoolLevel} grade ${grade}`);
     console.log('Canonical subjects:', canonicalSubjects);
     console.log('Subject aliases:', subjectAliases);
+    console.log('Using external JSON file for grade-specific subjects');
+    console.log('Grade data structure:', gradeDataForPrompt ? 'Found' : 'Not found');
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -963,6 +970,8 @@ async function processExcelFile(file: File, schoolLevel: string, grade: string) 
     console.log(`Loading Excel subjects for ${schoolLevel} grade ${grade}`);
     console.log('Canonical subjects:', canonicalSubjects);
     console.log('Subject aliases:', subjectAliases);
+    console.log('Using external JSON file for Excel grade-specific subjects');
+    console.log('Excel grade data structure:', gradeDataForExcel ? 'Found' : 'Not found');
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
