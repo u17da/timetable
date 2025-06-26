@@ -777,7 +777,7 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
       return NextResponse.json(normalizationCache[cacheKey]);
     }
 
-    const subjectMasterForPrompt = await loadSubjectMaster();
+    const subjectMasterForPrompt = await loadSubjectMaster(true);
     const gradeDataForPrompt = subjectMasterForPrompt[schoolLevel]?.[grade];
     const canonicalSubjects = gradeDataForPrompt ? Object.keys(gradeDataForPrompt) : [];
     const subjectAliases = gradeDataForPrompt ? 
@@ -879,7 +879,7 @@ Extract all visible time slots, subjects, and room numbers. Include both the can
       }
     }
 
-    const subjectMaster = await loadSubjectMaster();
+    const subjectMaster = await loadSubjectMaster(true);
     if (timetableData.schedule) {
       for (const [, entries] of Object.entries(timetableData.schedule)) {
         if (Array.isArray(entries)) {
@@ -942,7 +942,7 @@ async function processExcelFile(file: File, schoolLevel: string, grade: string) 
       return NextResponse.json(normalizationCache[cacheKey]);
     }
 
-    const subjectMasterForExcel = await loadSubjectMaster();
+    const subjectMasterForExcel = await loadSubjectMaster(true);
     const gradeDataForExcel = subjectMasterForExcel[schoolLevel]?.[grade];
     const canonicalSubjects = gradeDataForExcel ? Object.keys(gradeDataForExcel) : [];
     const subjectAliases = gradeDataForExcel ? 
@@ -1037,7 +1037,7 @@ Extract all time slots, subjects, and room information. Include both the canonic
       }
     }
 
-    const subjectMaster = await loadSubjectMaster();
+    const subjectMaster = await loadSubjectMaster(true);
     if (timetableData.schedule) {
       for (const [, entries] of Object.entries(timetableData.schedule)) {
         if (Array.isArray(entries)) {
