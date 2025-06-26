@@ -18,69 +18,617 @@ interface SubjectMaster {
   };
 }
 
-let subjectMasterCache: SubjectMaster | null = null;
-
-async function loadSubjectMaster(): Promise<SubjectMaster> {
-  if (subjectMasterCache) {
-    console.log('Using cached subject master');
-    return subjectMasterCache;
-  }
-  
-  try {
-    const fs = await import('fs');
-    const path = await import('path');
-    
-    let filePath = path.join(process.cwd(), 'public', 'subject_master_full.json');
-    console.log('Trying path 1:', filePath);
-    
-    if (!fs.existsSync(filePath)) {
-      filePath = path.join(process.cwd(), '..', '..', '..', 'public', 'subject_master_full.json');
-      console.log('Trying path 2:', filePath);
-    }
-    
-    if (!fs.existsSync(filePath)) {
-      filePath = path.join(__dirname, '..', '..', '..', '..', 'public', 'subject_master_full.json');
-      console.log('Trying path 3:', filePath);
-    }
-    
-    if (!fs.existsSync(filePath)) {
-      console.log('File not found, trying fetch fallback');
-      try {
-        const baseUrl = process.env.VERCEL_URL 
-          ? `https://${process.env.VERCEL_URL}` 
-          : 'https://timetable-pied-eta.vercel.app';
-        const fetchUrl = `${baseUrl}/subject_master_full.json`;
-        console.log('Fetching from URL:', fetchUrl);
-        
-        const response = await fetch(fetchUrl);
-        if (response.ok) {
-          const jsonData = await response.json();
-          subjectMasterCache = jsonData;
-          console.log('Subject master loaded via fetch, keys:', Object.keys(subjectMasterCache!));
-          console.log('Elementary grades:', Object.keys(subjectMasterCache!.elementary || {}));
-          console.log('Junior grades:', Object.keys(subjectMasterCache!.junior || {}));
-          return subjectMasterCache!;
-        } else {
-          console.error('Fetch response not ok:', response.status, response.statusText);
-        }
-      } catch (fetchError) {
-        console.error('Fetch fallback failed:', fetchError);
+const EMBEDDED_SUBJECT_MASTER: SubjectMaster = {
+  "elementary": {
+    "1": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "書写": {
+        "aliases": ["書写"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "算数": {
+        "aliases": ["算数"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "図工": {
+        "aliases": ["図工"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "体育": {
+        "aliases": ["体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "生活": {
+        "aliases": ["生活"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "行事": {
+        "aliases": ["行事"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "自立": {
+        "aliases": ["自立"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "その他": {
+        "aliases": ["その他"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      }
+    },
+    "2": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "書写": {
+        "aliases": ["書写"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "算数": {
+        "aliases": ["算数"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "図工": {
+        "aliases": ["図工"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "体育": {
+        "aliases": ["体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "生活": {
+        "aliases": ["生活"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "行事": {
+        "aliases": ["行事"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "自立": {
+        "aliases": ["自立"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "その他": {
+        "aliases": ["その他"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      }
+    },
+    "3": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "書写": {
+        "aliases": ["書写"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "社会": {
+        "aliases": ["社会"],
+        "color": "#FFF8E1 社会/公民/地理/歴史"
+      },
+      "算数": {
+        "aliases": ["算数"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "理科": {
+        "aliases": ["理科"],
+        "color": "#E8F5E9 理科"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "図工": {
+        "aliases": ["図工"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "体育": {
+        "aliases": ["体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "保健": {
+        "aliases": ["保健"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "外国語活動": {
+        "aliases": ["外国語活動"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "総合": {
+        "aliases": ["総合"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "行事": {
+        "aliases": ["行事"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "自立": {
+        "aliases": ["自立"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "その他": {
+        "aliases": ["その他"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      }
+    },
+    "4": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "書写": {
+        "aliases": ["書写"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "社会": {
+        "aliases": ["社会"],
+        "color": "#FFF8E1 社会/公民/地理/歴史"
+      },
+      "算数": {
+        "aliases": ["算数"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "理科": {
+        "aliases": ["理科"],
+        "color": "#E8F5E9 理科"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "図工": {
+        "aliases": ["図工"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "体育": {
+        "aliases": ["体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "保健": {
+        "aliases": ["保健"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "外国語活動": {
+        "aliases": ["外国語活動"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "総合": {
+        "aliases": ["総合"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "委員会": {
+        "aliases": ["委員会"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "クラブ": {
+        "aliases": ["クラブ"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "行事": {
+        "aliases": ["行事"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "自立": {
+        "aliases": ["自立"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "その他": {
+        "aliases": ["その他"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      }
+    },
+    "5": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "書写": {
+        "aliases": ["書写"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "社会": {
+        "aliases": ["社会"],
+        "color": "#FFF8E1 社会/公民/地理/歴史"
+      },
+      "算数": {
+        "aliases": ["算数"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "理科": {
+        "aliases": ["理科"],
+        "color": "#E8F5E9 理科"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "図工": {
+        "aliases": ["図工"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "家庭": {
+        "aliases": ["家庭"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "体育": {
+        "aliases": ["体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "保健": {
+        "aliases": ["保健"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "外国語": {
+        "aliases": ["外国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "英語": {
+        "aliases": ["英語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "総合": {
+        "aliases": ["総合"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "委員会": {
+        "aliases": ["委員会"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "クラブ": {
+        "aliases": ["クラブ"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "行事": {
+        "aliases": ["行事"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "自立": {
+        "aliases": ["自立"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "その他": {
+        "aliases": ["その他"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      }
+    },
+    "6": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "書写": {
+        "aliases": ["書写"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "社会": {
+        "aliases": ["社会"],
+        "color": "#FFF8E1 社会/公民/地理/歴史"
+      },
+      "算数": {
+        "aliases": ["算数"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "理科": {
+        "aliases": ["理科"],
+        "color": "#E8F5E9 理科"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "図工": {
+        "aliases": ["図工"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "家庭": {
+        "aliases": ["家庭"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "体育": {
+        "aliases": ["体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "保健": {
+        "aliases": ["保健"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "外国語": {
+        "aliases": ["外国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "英語": {
+        "aliases": ["英語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "総合": {
+        "aliases": ["総合"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "委員会": {
+        "aliases": ["委員会"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "クラブ": {
+        "aliases": ["クラブ"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "行事": {
+        "aliases": ["行事"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "自立": {
+        "aliases": ["自立"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "その他": {
+        "aliases": ["その他"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
       }
     }
-    
-    console.log('Loading subject master from file:', filePath);
-    const fileContent = fs.readFileSync(filePath, 'utf-8');
-    subjectMasterCache = JSON.parse(fileContent);
-    console.log('Subject master loaded from file, keys:', Object.keys(subjectMasterCache!));
-    console.log('Elementary grades:', Object.keys(subjectMasterCache!.elementary || {}));
-    console.log('Junior grades:', Object.keys(subjectMasterCache!.junior || {}));
-    return subjectMasterCache!;
-  } catch (error) {
-    console.error('Error loading subject master:', error);
-    subjectMasterCache = { elementary: {}, junior: {} };
-    console.log('Using empty fallback subject master');
-    return subjectMasterCache;
+  },
+  "junior": {
+    "1": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "社会": {
+        "aliases": ["社会"],
+        "color": "#FFF8E1 社会/公民/地理/歴史"
+      },
+      "数学": {
+        "aliases": ["数学"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "理科": {
+        "aliases": ["理科"],
+        "color": "#E8F5E9 理科"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "美術": {
+        "aliases": ["美術"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "保健体育": {
+        "aliases": ["保健体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "技術": {
+        "aliases": ["技術"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "家庭": {
+        "aliases": ["家庭"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "英語": {
+        "aliases": ["英語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "総合": {
+        "aliases": ["総合"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      }
+    },
+    "2": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "社会": {
+        "aliases": ["社会"],
+        "color": "#FFF8E1 社会/公民/地理/歴史"
+      },
+      "数学": {
+        "aliases": ["数学"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "理科": {
+        "aliases": ["理科"],
+        "color": "#E8F5E9 理科"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "美術": {
+        "aliases": ["美術"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "保健体育": {
+        "aliases": ["保健体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "技術": {
+        "aliases": ["技術"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "家庭": {
+        "aliases": ["家庭"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "英語": {
+        "aliases": ["英語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "総合": {
+        "aliases": ["総合"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      }
+    },
+    "3": {
+      "国語": {
+        "aliases": ["国語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "社会": {
+        "aliases": ["社会"],
+        "color": "#FFF8E1 社会/公民/地理/歴史"
+      },
+      "数学": {
+        "aliases": ["数学"],
+        "color": "#E1F7FD 算数/数学"
+      },
+      "理科": {
+        "aliases": ["理科"],
+        "color": "#E8F5E9 理科"
+      },
+      "音楽": {
+        "aliases": ["音楽"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "美術": {
+        "aliases": ["美術"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "保健体育": {
+        "aliases": ["保健体育"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "技術": {
+        "aliases": ["技術"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "家庭": {
+        "aliases": ["家庭"],
+        "color": "#FBE9E7 音楽/家庭/図画工作/体育/美術/保健体育/技術"
+      },
+      "英語": {
+        "aliases": ["英語"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
+      "道徳": {
+        "aliases": ["道徳"],
+        "color": "#EDE7F6 道徳/生活"
+      },
+      "総合": {
+        "aliases": ["総合"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "特活": {
+        "aliases": ["特活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      },
+      "学活": {
+        "aliases": ["学活"],
+        "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
+      }
+    }
   }
+};
+
+async function loadSubjectMaster(): Promise<SubjectMaster> {
+  return EMBEDDED_SUBJECT_MASTER;
 }
 
 function extractColorHex(colorString: string): string {
