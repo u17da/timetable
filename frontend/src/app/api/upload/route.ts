@@ -243,6 +243,10 @@ const EMBEDDED_SUBJECT_MASTER: SubjectMaster = {
         "aliases": ["外国語活動", "がいこくごかつどう"],
         "color": "#FCE4EC 国語/英語/外国語活動"
       },
+      "英語": {
+        "aliases": ["英語", "えいご"],
+        "color": "#FCE4EC 国語/英語/外国語活動"
+      },
       "総合": {
         "aliases": ["総合", "そうごう"],
         "color": "#ECEFF1 総合的な学習の時間/特別活動/学級活動"
@@ -687,8 +691,18 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const schoolLevel = formData.get('schoolLevel') as string || 'elementary';
-    const grade = formData.get('grade') as string || '1';
+    const rawGrade = formData.get('grade') as string || '小学1年';
+    
+    let schoolLevel = 'elementary';
+    let grade = '1';
+    
+    if (rawGrade.startsWith('小学')) {
+      schoolLevel = 'elementary';
+      grade = rawGrade.replace('小学', '').replace('年', '');
+    } else if (rawGrade.startsWith('中学')) {
+      schoolLevel = 'junior';
+      grade = rawGrade.replace('中学', '').replace('年', '');
+    }
     
     if (!file) {
       return NextResponse.json(
