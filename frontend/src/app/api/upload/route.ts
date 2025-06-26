@@ -3,6 +3,21 @@ import OpenAI from 'openai';
 import * as XLSX from 'xlsx';
 import sharp from 'sharp';
 
+interface TimetableData {
+  title: string;
+  schedule: {
+    [key: string]: Array<{
+      time: string;
+      subject: string;
+      room: string;
+      normalizedSubject?: string;
+      subjectColor?: string;
+      isUnmatched?: boolean;
+      originalSubject?: string;
+    }>;
+  };
+}
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -631,7 +646,17 @@ const EMBEDDED_SUBJECT_MASTER: SubjectMaster = {
   }
 };
 
-async function loadSubjectMaster(): Promise<SubjectMaster> {
+async function loadSubjectMaster(useJsonFile: boolean = false): Promise<SubjectMaster> {
+  if (useJsonFile) {
+    try {
+      const response = await fetch('/subject_master_full.json');
+      if (response.ok) {
+        return await response.json();
+      }
+    } catch {
+      console.log('Failed to load JSON file, falling back to embedded data');
+    }
+  }
   return EMBEDDED_SUBJECT_MASTER;
 }
 
@@ -686,6 +711,11 @@ function normalizeSubject(
 }
 
 const timetablesStorage: Record<string, unknown> = {};
+const normalizationCache: Record<string, { id: string; data: TimetableData }> = {};
+
+function getCacheKey(fileContent: string, schoolLevel: string, grade: string): string {
+  return `${schoolLevel}_${grade}_${fileContent.slice(0, 100)}`;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -741,34 +771,49 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
     const pngBuffer = await sharp(buffer).png().toBuffer();
     const base64Image = pngBuffer.toString('base64');
     
+    const cacheKey = getCacheKey(base64Image, schoolLevel, grade);
+    if (normalizationCache[cacheKey]) {
+      console.log('Using cached normalization result');
+      return NextResponse.json(normalizationCache[cacheKey]);
+    }
+
     const subjectMasterForPrompt = await loadSubjectMaster();
     const gradeDataForPrompt = subjectMasterForPrompt[schoolLevel]?.[grade];
-    const availableSubjects = gradeDataForPrompt ? Object.keys(gradeDataForPrompt) : [];
+    const canonicalSubjects = gradeDataForPrompt ? Object.keys(gradeDataForPrompt) : [];
+    const subjectAliases = gradeDataForPrompt ? 
+      Object.entries(gradeDataForPrompt).flatMap(([subject, data]) => 
+        data.aliases.map(alias => `${alias} → ${subject}`)
+      ) : [];
     
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
+      temperature: 0,
       messages: [
         {
           role: "user",
           content: [
             {
               type: "text",
-              text: `Please analyze this timetable image and extract the schedule information. 
+              text: `CONTEXT: This is a ${schoolLevel} grade ${grade} timetable.
 
-CONTEXT: This is a ${schoolLevel} grade ${grade} timetable. The standard subjects for this grade level are: ${availableSubjects.join(', ')}.
+CANONICAL SUBJECTS for this grade: ${canonicalSubjects.join(', ')}
 
-IMPORTANT INSTRUCTIONS:
-1. Extract subject names exactly as they appear in the image (preserve original language - Japanese, English, etc.)
-2. However, when you encounter abbreviated or alternative forms of subjects, use your intelligence to recognize them and output the most appropriate standard form
-3. For example: "えいご" should be recognized as "英語", "体" should be "体育", "図" should be "図工", etc.
-4. When in doubt between preserving the exact text vs. using a standard form, prefer the standard form if it clearly matches a known subject
+SUBJECT ALIASES AND MAPPINGS:
+${subjectAliases.join('\n')}
+
+NORMALIZATION INSTRUCTIONS:
+1. Extract the raw timetable data exactly as it appears
+2. For each subject, use your intelligence to match it to the most appropriate canonical subject from the list above
+3. When you see abbreviated or alternative forms (like "えいご", "さんすう", "こく語"), map them to their canonical forms using the aliases provided
+4. Output the CANONICAL subject names in your JSON response, not the raw extracted text
+5. If no good match exists, preserve the original text
 
 Return a JSON object with the following structure:
 {
   "title": "Schedule title if visible",
   "schedule": {
-    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101"}],
-    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202"}],
+    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101", "originalSubject": "さんすう"}],
+    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202", "originalSubject": "こくご"}],
     "Wednesday": [],
     "Thursday": [],
     "Friday": [],
@@ -777,7 +822,7 @@ Return a JSON object with the following structure:
   }
 }
 
-Extract all visible time slots, subjects, and room numbers. Use your knowledge of Japanese education and the provided subject list to intelligently normalize subject names while preserving the original meaning.`
+Extract all visible time slots, subjects, and room numbers. Include both the canonical subject name and the original extracted text for reference. Use the canonical subject mappings provided above to ensure accurate normalization.`
             },
             {
               type: "image_url",
@@ -797,15 +842,39 @@ Extract all visible time slots, subjects, and room numbers. Use your knowledge o
     try {
       timetableData = JSON.parse(content || '{}');
     } catch {
+      console.log('OpenAI response parsing failed, attempting fallback extraction');
       const jsonMatch = content?.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
       if (jsonMatch) {
-        timetableData = JSON.parse(jsonMatch[1]);
+        try {
+          timetableData = JSON.parse(jsonMatch[1]);
+        } catch {
+          timetableData = {
+            title: "Extracted Timetable",
+            schedule: {
+              Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
+            }
+          };
+        }
       } else {
         const simpleJsonMatch = content?.match(/\{[\s\S]*\}/);
         if (simpleJsonMatch) {
-          timetableData = JSON.parse(simpleJsonMatch[0]);
+          try {
+            timetableData = JSON.parse(simpleJsonMatch[0]);
+          } catch {
+            timetableData = {
+              title: "Extracted Timetable",
+              schedule: {
+                Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
+              }
+            };
+          }
         } else {
-          throw new Error('Failed to parse OpenAI response as JSON');
+          timetableData = {
+            title: "Extracted Timetable",
+            schedule: {
+              Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
+            }
+          };
         }
       }
     }
@@ -816,10 +885,18 @@ Extract all visible time slots, subjects, and room numbers. Use your knowledge o
         if (Array.isArray(entries)) {
           for (const entry of entries) {
             if (entry.subject) {
-              const normalized = normalizeSubject(entry.subject, schoolLevel, grade, subjectMaster);
-              entry.normalizedSubject = normalized.normalizedSubject;
-              entry.subjectColor = normalized.color;
-              entry.isUnmatched = normalized.isUnmatched;
+              const exactMatch = normalizeSubject(entry.subject, schoolLevel, grade, subjectMaster);
+              if (!exactMatch.isUnmatched) {
+                entry.normalizedSubject = exactMatch.normalizedSubject;
+                entry.subjectColor = exactMatch.color;
+                entry.isUnmatched = false;
+                entry.originalSubject = entry.originalSubject || entry.subject;
+              } else {
+                entry.normalizedSubject = entry.subject;
+                entry.subjectColor = '#FFFFFF';
+                entry.isUnmatched = true;
+                entry.originalSubject = entry.originalSubject || entry.subject;
+              }
             }
           }
         }
@@ -828,6 +905,10 @@ Extract all visible time slots, subjects, and room numbers. Use your knowledge o
 
     const fileId = `img_${Object.keys(timetablesStorage).length}`;
     timetablesStorage[fileId] = timetableData;
+    normalizationCache[cacheKey] = {
+      id: fileId,
+      data: timetableData
+    };
 
     return NextResponse.json({
       id: fileId,
@@ -855,26 +936,41 @@ async function processExcelFile(file: File, schoolLevel: string, grade: string) 
       .map((row) => row.map((cell) => cell?.toString() || '').join('\t'))
       .join('\n');
 
+    const cacheKey = getCacheKey(excelText, schoolLevel, grade);
+    if (normalizationCache[cacheKey]) {
+      console.log('Using cached normalization result for Excel');
+      return NextResponse.json(normalizationCache[cacheKey]);
+    }
+
     const subjectMasterForExcel = await loadSubjectMaster();
     const gradeDataForExcel = subjectMasterForExcel[schoolLevel]?.[grade];
-    const availableSubjects = gradeDataForExcel ? Object.keys(gradeDataForExcel) : [];
+    const canonicalSubjects = gradeDataForExcel ? Object.keys(gradeDataForExcel) : [];
+    const subjectAliases = gradeDataForExcel ? 
+      Object.entries(gradeDataForExcel).flatMap(([subject, data]) => 
+        data.aliases.map(alias => `${alias} → ${subject}`)
+      ) : [];
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
+      temperature: 0,
       messages: [
         {
           role: "user",
-          content: `Please analyze this Excel timetable data and convert it to a structured JSON format.
+          content: `CONTEXT: This is a ${schoolLevel} grade ${grade} timetable.
 
-CONTEXT: This is a ${schoolLevel} grade ${grade} timetable. The standard subjects for this grade level are: ${availableSubjects.join(', ')}.
+CANONICAL SUBJECTS for this grade: ${canonicalSubjects.join(', ')}
 
-IMPORTANT INSTRUCTIONS:
-1. Extract subject names exactly as they appear in the data (preserve original language - Japanese, English, etc.)
-2. However, when you encounter abbreviated or alternative forms of subjects, use your intelligence to recognize them and output the most appropriate standard form
-3. For example: "えいご" should be recognized as "英語", "体" should be "体育", "図" should be "図工", etc.
-4. When in doubt between preserving the exact text vs. using a standard form, prefer the standard form if it clearly matches a known subject
+SUBJECT ALIASES AND MAPPINGS:
+${subjectAliases.join('\n')}
 
-The data is:
+NORMALIZATION INSTRUCTIONS:
+1. Extract the raw timetable data exactly as it appears
+2. For each subject, use your intelligence to match it to the most appropriate canonical subject from the list above
+3. When you see abbreviated or alternative forms (like "えいご", "さんすう", "こく語"), map them to their canonical forms using the aliases provided
+4. Output the CANONICAL subject names in your JSON response, not the raw extracted text
+5. If no good match exists, preserve the original text
+
+The Excel data is:
 
 ${excelText}
 
@@ -882,8 +978,8 @@ Return a JSON object with the following structure:
 {
   "title": "Schedule title if identifiable",
   "schedule": {
-    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101"}],
-    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202"}],
+    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101", "originalSubject": "さんすう"}],
+    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202", "originalSubject": "こくご"}],
     "Wednesday": [],
     "Thursday": [],
     "Friday": [],
@@ -892,7 +988,7 @@ Return a JSON object with the following structure:
   }
 }
 
-Extract all time slots, subjects, and room information. Use your knowledge of Japanese education and the provided subject list to intelligently normalize subject names while preserving the original meaning. Organize by weekdays.`
+Extract all time slots, subjects, and room information. Include both the canonical subject name and the original extracted text for reference. Use the canonical subject mappings provided above to ensure accurate normalization. Organize by weekdays.`
         }
       ],
       max_tokens: 1000
@@ -904,15 +1000,39 @@ Extract all time slots, subjects, and room information. Use your knowledge of Ja
     try {
       timetableData = JSON.parse(content || '{}');
     } catch {
+      console.log('OpenAI response parsing failed, attempting fallback extraction');
       const jsonMatch = content?.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
       if (jsonMatch) {
-        timetableData = JSON.parse(jsonMatch[1]);
+        try {
+          timetableData = JSON.parse(jsonMatch[1]);
+        } catch {
+          timetableData = {
+            title: "Extracted Timetable",
+            schedule: {
+              Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
+            }
+          };
+        }
       } else {
         const simpleJsonMatch = content?.match(/\{[\s\S]*\}/);
         if (simpleJsonMatch) {
-          timetableData = JSON.parse(simpleJsonMatch[0]);
+          try {
+            timetableData = JSON.parse(simpleJsonMatch[0]);
+          } catch {
+            timetableData = {
+              title: "Extracted Timetable",
+              schedule: {
+                Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
+              }
+            };
+          }
         } else {
-          throw new Error('Failed to parse OpenAI response as JSON');
+          timetableData = {
+            title: "Extracted Timetable",
+            schedule: {
+              Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], Sunday: []
+            }
+          };
         }
       }
     }
@@ -923,10 +1043,18 @@ Extract all time slots, subjects, and room information. Use your knowledge of Ja
         if (Array.isArray(entries)) {
           for (const entry of entries) {
             if (entry.subject) {
-              const normalized = normalizeSubject(entry.subject, schoolLevel, grade, subjectMaster);
-              entry.normalizedSubject = normalized.normalizedSubject;
-              entry.subjectColor = normalized.color;
-              entry.isUnmatched = normalized.isUnmatched;
+              const exactMatch = normalizeSubject(entry.subject, schoolLevel, grade, subjectMaster);
+              if (!exactMatch.isUnmatched) {
+                entry.normalizedSubject = exactMatch.normalizedSubject;
+                entry.subjectColor = exactMatch.color;
+                entry.isUnmatched = false;
+                entry.originalSubject = entry.originalSubject || entry.subject;
+              } else {
+                entry.normalizedSubject = entry.subject;
+                entry.subjectColor = '#FFFFFF';
+                entry.isUnmatched = true;
+                entry.originalSubject = entry.originalSubject || entry.subject;
+              }
             }
           }
         }
@@ -935,6 +1063,10 @@ Extract all time slots, subjects, and room information. Use your knowledge of Ja
 
     const fileId = `excel_${Object.keys(timetablesStorage).length}`;
     timetablesStorage[fileId] = timetableData;
+    normalizationCache[cacheKey] = {
+      id: fileId,
+      data: timetableData
+    };
 
     return NextResponse.json({
       id: fileId,
