@@ -10,6 +10,7 @@ interface TimetableEntry {
   normalizedSubject?: string;
   subjectColor?: string;
   isUnmatched?: boolean;
+  originalSubject?: string;
 }
 
 interface TimetableData {
@@ -190,6 +191,7 @@ export default function Home() {
                                 backgroundColor: entry.subjectColor,
                                 borderColor: entry.subjectColor
                               } : {}}
+                              title={entry.isUnmatched ? `Original: ${entry.originalSubject || entry.subject}` : `Normalized by AI: ${entry.originalSubject || entry.subject} → ${entry.normalizedSubject}`}
                             >
                               <div className="text-sm font-medium text-gray-600">
                                 {entry.time}
