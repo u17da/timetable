@@ -731,18 +731,10 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const rawGrade = formData.get('grade') as string || '小学1年';
+    const schoolLevel = formData.get('schoolLevel') as string || 'elementary';
+    const grade = formData.get('grade') as string || '1';
     
-    let schoolLevel = 'elementary';
-    let grade = '1';
-    
-    if (rawGrade.startsWith('小学')) {
-      schoolLevel = 'elementary';
-      grade = rawGrade.replace('小学', '').replace('年', '');
-    } else if (rawGrade.startsWith('中学')) {
-      schoolLevel = 'junior';
-      grade = rawGrade.replace('中学', '').replace('年', '');
-    }
+    console.log(`Received grade selection: schoolLevel=${schoolLevel}, grade=${grade}`);
     
     if (!file) {
       return NextResponse.json(
