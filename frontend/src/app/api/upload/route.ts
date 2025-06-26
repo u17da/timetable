@@ -22,6 +22,7 @@ let subjectMasterCache: SubjectMaster | null = null;
 
 async function loadSubjectMaster(): Promise<SubjectMaster> {
   if (subjectMasterCache) {
+    console.log('Using cached subject master');
     return subjectMasterCache;
   }
   
@@ -30,21 +31,28 @@ async function loadSubjectMaster(): Promise<SubjectMaster> {
     const path = await import('path');
     
     let filePath = path.join(process.cwd(), 'public', 'subject_master_full.json');
+    console.log('Trying path 1:', filePath);
     
     if (!fs.existsSync(filePath)) {
       filePath = path.join(process.cwd(), '..', '..', '..', 'public', 'subject_master_full.json');
+      console.log('Trying path 2:', filePath);
     }
     
     if (!fs.existsSync(filePath)) {
       filePath = path.join(__dirname, '..', '..', '..', '..', 'public', 'subject_master_full.json');
+      console.log('Trying path 3:', filePath);
     }
     
     if (!fs.existsSync(filePath)) {
+      console.log('File not found, trying fetch fallback');
       try {
         const response = await fetch('/subject_master_full.json');
         if (response.ok) {
           const jsonData = await response.json();
           subjectMasterCache = jsonData;
+          console.log('Subject master loaded via fetch, keys:', Object.keys(subjectMasterCache!));
+          console.log('Elementary grades:', Object.keys(subjectMasterCache!.elementary || {}));
+          console.log('Junior grades:', Object.keys(subjectMasterCache!.junior || {}));
           return subjectMasterCache!;
         }
       } catch (fetchError) {
@@ -52,12 +60,17 @@ async function loadSubjectMaster(): Promise<SubjectMaster> {
       }
     }
     
+    console.log('Loading subject master from file:', filePath);
     const fileContent = fs.readFileSync(filePath, 'utf-8');
     subjectMasterCache = JSON.parse(fileContent);
+    console.log('Subject master loaded from file, keys:', Object.keys(subjectMasterCache!));
+    console.log('Elementary grades:', Object.keys(subjectMasterCache!.elementary || {}));
+    console.log('Junior grades:', Object.keys(subjectMasterCache!.junior || {}));
     return subjectMasterCache!;
   } catch (error) {
     console.error('Error loading subject master:', error);
     subjectMasterCache = { elementary: {}, junior: {} };
+    console.log('Using empty fallback subject master');
     return subjectMasterCache;
   }
 }
@@ -73,13 +86,22 @@ function normalizeSubject(
   grade: string, 
   subjectMaster: SubjectMaster
 ): { normalizedSubject: string; color: string; isUnmatched: boolean } {
+  console.log(`Normalizing subject: "${subject}" for ${schoolLevel} grade ${grade}`);
+  
   const gradeData = subjectMaster[schoolLevel]?.[grade];
+  console.log('Grade data found:', !!gradeData);
+  if (gradeData) {
+    console.log('Available subjects in grade data:', Object.keys(gradeData));
+  }
+  
   if (!gradeData) {
-    return { normalizedSubject: subject, color: '#EF4444', isUnmatched: true };
+    console.log('No grade data found, returning unmatched');
+    return { normalizedSubject: subject, color: '#FFFFFF', isUnmatched: true };
   }
 
   for (const [canonicalSubject, data] of Object.entries(gradeData)) {
     if (data.aliases.includes(subject)) {
+      console.log(`Found exact alias match: "${subject}" -> "${canonicalSubject}"`);
       return {
         normalizedSubject: canonicalSubject,
         color: extractColorHex(data.color),
@@ -90,6 +112,7 @@ function normalizeSubject(
 
   for (const [canonicalSubject, data] of Object.entries(gradeData)) {
     if (canonicalSubject.includes(subject) || subject.includes(canonicalSubject)) {
+      console.log(`Found fuzzy match: "${subject}" -> "${canonicalSubject}"`);
       return {
         normalizedSubject: canonicalSubject,
         color: extractColorHex(data.color),
@@ -98,7 +121,8 @@ function normalizeSubject(
     }
   }
 
-  return { normalizedSubject: subject, color: '#EF4444', isUnmatched: true };
+  console.log(`No match found for subject: "${subject}"`);
+  return { normalizedSubject: subject, color: '#FFFFFF', isUnmatched: true };
 }
 
 const timetablesStorage: Record<string, unknown> = {};
@@ -155,12 +179,12 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
           content: [
             {
               type: "text",
-              text: `Please analyze this timetable image and extract the schedule information. Return a JSON object with the following structure:
+              text: `Please analyze this timetable image and extract the schedule information. IMPORTANT: Preserve the original language of subject names exactly as they appear in the image - do not translate them to English. Return a JSON object with the following structure:
               {
                 "title": "Schedule title if visible",
                 "schedule": {
-                  "Monday": [{"time": "09:00-10:00", "subject": "Math", "room": "A101"}],
-                  "Tuesday": [{"time": "09:00-10:00", "subject": "English", "room": "B202"}],
+                  "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101"}],
+                  "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202"}],
                   "Wednesday": [],
                   "Thursday": [],
                   "Friday": [],
@@ -168,7 +192,7 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
                   "Sunday": []
                 }
               }
-              Extract all visible time slots, subjects, and room numbers. If information is unclear, use your best judgment.`
+              Extract all visible time slots, subjects, and room numbers. Keep subject names in their original language (Japanese, English, etc.) exactly as written in the image. If information is unclear, use your best judgment.`
             },
             {
               type: "image_url",
@@ -251,7 +275,7 @@ async function processExcelFile(file: File, schoolLevel: string, grade: string) 
       messages: [
         {
           role: "user",
-          content: `Please analyze this Excel timetable data and convert it to a structured JSON format. The data is:
+          content: `Please analyze this Excel timetable data and convert it to a structured JSON format. IMPORTANT: Preserve the original language of subject names exactly as they appear in the data - do not translate them to English. The data is:
 
 ${excelText}
 
@@ -259,8 +283,8 @@ Return a JSON object with the following structure:
 {
   "title": "Schedule title if identifiable",
   "schedule": {
-    "Monday": [{"time": "09:00-10:00", "subject": "Math", "room": "A101"}],
-    "Tuesday": [{"time": "09:00-10:00", "subject": "English", "room": "B202"}],
+    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101"}],
+    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202"}],
     "Wednesday": [],
     "Thursday": [],
     "Friday": [],
@@ -269,7 +293,7 @@ Return a JSON object with the following structure:
   }
 }
 
-Extract all time slots, subjects, and room information. Organize by weekdays. If the format is unclear, use your best judgment to structure the data appropriately.`
+Extract all time slots, subjects, and room information. Keep subject names in their original language (Japanese, English, etc.) exactly as written in the data. Organize by weekdays. If the format is unclear, use your best judgment to structure the data appropriately.`
         }
       ],
       max_tokens: 1000
