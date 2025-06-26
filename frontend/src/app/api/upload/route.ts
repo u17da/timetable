@@ -46,7 +46,13 @@ async function loadSubjectMaster(): Promise<SubjectMaster> {
     if (!fs.existsSync(filePath)) {
       console.log('File not found, trying fetch fallback');
       try {
-        const response = await fetch('/subject_master_full.json');
+        const baseUrl = process.env.VERCEL_URL 
+          ? `https://${process.env.VERCEL_URL}` 
+          : 'https://timetable-pied-eta.vercel.app';
+        const fetchUrl = `${baseUrl}/subject_master_full.json`;
+        console.log('Fetching from URL:', fetchUrl);
+        
+        const response = await fetch(fetchUrl);
         if (response.ok) {
           const jsonData = await response.json();
           subjectMasterCache = jsonData;
@@ -54,6 +60,8 @@ async function loadSubjectMaster(): Promise<SubjectMaster> {
           console.log('Elementary grades:', Object.keys(subjectMasterCache!.elementary || {}));
           console.log('Junior grades:', Object.keys(subjectMasterCache!.junior || {}));
           return subjectMasterCache!;
+        } else {
+          console.error('Fetch response not ok:', response.status, response.statusText);
         }
       } catch (fetchError) {
         console.error('Fetch fallback failed:', fetchError);
