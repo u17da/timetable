@@ -655,11 +655,13 @@ async function loadSubjectMaster(useJsonFile: boolean = false): Promise<SubjectM
       const fileContent = fs.readFileSync(filePath, 'utf8');
       const jsonData = JSON.parse(fileContent);
       console.log('Successfully loaded external JSON file with', Object.keys(jsonData).length, 'school levels');
+      console.log('Available school levels:', Object.keys(jsonData));
       return jsonData;
     } catch (error) {
       console.log('Failed to load JSON file, falling back to embedded data:', error);
     }
   }
+  console.log('Using embedded subject master data');
   return EMBEDDED_SUBJECT_MASTER;
 }
 
@@ -788,6 +790,10 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
         data.aliases.map(alias => `${alias} → ${subject}`)
       ) : [];
     
+    console.log(`Loading subjects for ${schoolLevel} grade ${grade}`);
+    console.log('Canonical subjects:', canonicalSubjects);
+    console.log('Subject aliases:', subjectAliases);
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       temperature: 0,
@@ -809,14 +815,15 @@ NORMALIZATION INSTRUCTIONS:
 2. For each subject, use your intelligence to match it to the most appropriate canonical subject from the list above
 3. When you see abbreviated or alternative forms (like "えいご", "さんすう", "こく語"), map them to their canonical forms using the aliases provided
 4. Output the CANONICAL subject names in your JSON response, not the raw extracted text
-5. If no good match exists, preserve the original text
+5. Use the exact canonical subject names from the list above - for elementary grade 1, use hiragana forms like "こくご", "さんすう"
+6. If no good match exists, preserve the original text
 
 Return a JSON object with the following structure:
 {
   "title": "Schedule title if visible",
   "schedule": {
-    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101", "originalSubject": "さんすう"}],
-    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202", "originalSubject": "こくご"}],
+    "Monday": [{"time": "09:00-10:00", "subject": "${canonicalSubjects[0] || 'subject'}", "room": "A101", "originalSubject": "original_text"}],
+    "Tuesday": [{"time": "09:00-10:00", "subject": "${canonicalSubjects[1] || 'subject'}", "room": "B202", "originalSubject": "original_text"}],
     "Wednesday": [],
     "Thursday": [],
     "Friday": [],
@@ -952,6 +959,10 @@ async function processExcelFile(file: File, schoolLevel: string, grade: string) 
       Object.entries(gradeDataForExcel).flatMap(([subject, data]) => 
         data.aliases.map(alias => `${alias} → ${subject}`)
       ) : [];
+    
+    console.log(`Loading Excel subjects for ${schoolLevel} grade ${grade}`);
+    console.log('Canonical subjects:', canonicalSubjects);
+    console.log('Subject aliases:', subjectAliases);
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -971,7 +982,8 @@ NORMALIZATION INSTRUCTIONS:
 2. For each subject, use your intelligence to match it to the most appropriate canonical subject from the list above
 3. When you see abbreviated or alternative forms (like "えいご", "さんすう", "こく語"), map them to their canonical forms using the aliases provided
 4. Output the CANONICAL subject names in your JSON response, not the raw extracted text
-5. If no good match exists, preserve the original text
+5. Use the exact canonical subject names from the list above - for elementary grade 1, use hiragana forms like "こくご", "さんすう"
+6. If no good match exists, preserve the original text
 
 The Excel data is:
 
@@ -981,8 +993,8 @@ Return a JSON object with the following structure:
 {
   "title": "Schedule title if identifiable",
   "schedule": {
-    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101", "originalSubject": "さんすう"}],
-    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202", "originalSubject": "こくご"}],
+    "Monday": [{"time": "09:00-10:00", "subject": "${canonicalSubjects[0] || 'subject'}", "room": "A101", "originalSubject": "original_text"}],
+    "Tuesday": [{"time": "09:00-10:00", "subject": "${canonicalSubjects[1] || 'subject'}", "room": "B202", "originalSubject": "original_text"}],
     "Wednesday": [],
     "Thursday": [],
     "Friday": [],
