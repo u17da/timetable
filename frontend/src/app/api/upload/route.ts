@@ -727,6 +727,10 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
     const pngBuffer = await sharp(buffer).png().toBuffer();
     const base64Image = pngBuffer.toString('base64');
     
+    const subjectMasterForPrompt = await loadSubjectMaster();
+    const gradeDataForPrompt = subjectMasterForPrompt[schoolLevel]?.[grade];
+    const availableSubjects = gradeDataForPrompt ? Object.keys(gradeDataForPrompt) : [];
+    
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -735,20 +739,31 @@ async function processImageFile(file: File, schoolLevel: string, grade: string) 
           content: [
             {
               type: "text",
-              text: `Please analyze this timetable image and extract the schedule information. IMPORTANT: Preserve the original language of subject names exactly as they appear in the image - do not translate them to English. Return a JSON object with the following structure:
-              {
-                "title": "Schedule title if visible",
-                "schedule": {
-                  "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101"}],
-                  "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202"}],
-                  "Wednesday": [],
-                  "Thursday": [],
-                  "Friday": [],
-                  "Saturday": [],
-                  "Sunday": []
-                }
-              }
-              Extract all visible time slots, subjects, and room numbers. Keep subject names in their original language (Japanese, English, etc.) exactly as written in the image. If information is unclear, use your best judgment.`
+              text: `Please analyze this timetable image and extract the schedule information. 
+
+CONTEXT: This is a ${schoolLevel} grade ${grade} timetable. The standard subjects for this grade level are: ${availableSubjects.join(', ')}.
+
+IMPORTANT INSTRUCTIONS:
+1. Extract subject names exactly as they appear in the image (preserve original language - Japanese, English, etc.)
+2. However, when you encounter abbreviated or alternative forms of subjects, use your intelligence to recognize them and output the most appropriate standard form
+3. For example: "えいご" should be recognized as "英語", "体" should be "体育", "図" should be "図工", etc.
+4. When in doubt between preserving the exact text vs. using a standard form, prefer the standard form if it clearly matches a known subject
+
+Return a JSON object with the following structure:
+{
+  "title": "Schedule title if visible",
+  "schedule": {
+    "Monday": [{"time": "09:00-10:00", "subject": "算数", "room": "A101"}],
+    "Tuesday": [{"time": "09:00-10:00", "subject": "国語", "room": "B202"}],
+    "Wednesday": [],
+    "Thursday": [],
+    "Friday": [],
+    "Saturday": [],
+    "Sunday": []
+  }
+}
+
+Extract all visible time slots, subjects, and room numbers. Use your knowledge of Japanese education and the provided subject list to intelligently normalize subject names while preserving the original meaning.`
             },
             {
               type: "image_url",
@@ -826,12 +841,26 @@ async function processExcelFile(file: File, schoolLevel: string, grade: string) 
       .map((row) => row.map((cell) => cell?.toString() || '').join('\t'))
       .join('\n');
 
+    const subjectMasterForExcel = await loadSubjectMaster();
+    const gradeDataForExcel = subjectMasterForExcel[schoolLevel]?.[grade];
+    const availableSubjects = gradeDataForExcel ? Object.keys(gradeDataForExcel) : [];
+
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "user",
-          content: `Please analyze this Excel timetable data and convert it to a structured JSON format. IMPORTANT: Preserve the original language of subject names exactly as they appear in the data - do not translate them to English. The data is:
+          content: `Please analyze this Excel timetable data and convert it to a structured JSON format.
+
+CONTEXT: This is a ${schoolLevel} grade ${grade} timetable. The standard subjects for this grade level are: ${availableSubjects.join(', ')}.
+
+IMPORTANT INSTRUCTIONS:
+1. Extract subject names exactly as they appear in the data (preserve original language - Japanese, English, etc.)
+2. However, when you encounter abbreviated or alternative forms of subjects, use your intelligence to recognize them and output the most appropriate standard form
+3. For example: "えいご" should be recognized as "英語", "体" should be "体育", "図" should be "図工", etc.
+4. When in doubt between preserving the exact text vs. using a standard form, prefer the standard form if it clearly matches a known subject
+
+The data is:
 
 ${excelText}
 
@@ -849,7 +878,7 @@ Return a JSON object with the following structure:
   }
 }
 
-Extract all time slots, subjects, and room information. Keep subject names in their original language (Japanese, English, etc.) exactly as written in the data. Organize by weekdays. If the format is unclear, use your best judgment to structure the data appropriately.`
+Extract all time slots, subjects, and room information. Use your knowledge of Japanese education and the provided subject list to intelligently normalize subject names while preserving the original meaning. Organize by weekdays.`
         }
       ],
       max_tokens: 1000
