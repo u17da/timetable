@@ -37,21 +37,7 @@ export default function Home() {
       const formData = new FormData();
       formData.append('file', file);
       
-      const gradeMapping: Record<string, {schoolLevel: string, grade: string}> = {
-        '小学1年': {schoolLevel: 'elementary', grade: '1'},
-        '小学2年': {schoolLevel: 'elementary', grade: '2'},
-        '小学3年': {schoolLevel: 'elementary', grade: '3'},
-        '小学4年': {schoolLevel: 'elementary', grade: '4'},
-        '小学5年': {schoolLevel: 'elementary', grade: '5'},
-        '小学6年': {schoolLevel: 'elementary', grade: '6'},
-        '中学1年': {schoolLevel: 'junior', grade: '1'},
-        '中学2年': {schoolLevel: 'junior', grade: '2'},
-        '中学3年': {schoolLevel: 'junior', grade: '3'},
-      };
-      
-      const mapping = gradeMapping[selectedGrade];
-      formData.append('schoolLevel', mapping.schoolLevel);
-      formData.append('grade', mapping.grade);
+      formData.append('grade', selectedGrade);
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -71,7 +57,7 @@ export default function Home() {
     }
   };
 
-  const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
