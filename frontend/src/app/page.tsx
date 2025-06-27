@@ -50,6 +50,9 @@ export default function Home() {
       };
       
       const mapping = gradeMapping[selectedGrade];
+      if (!mapping) {
+        throw new Error(`Invalid grade selection: ${selectedGrade}`);
+      }
       formData.append('schoolLevel', mapping.schoolLevel);
       formData.append('grade', mapping.grade);
 
