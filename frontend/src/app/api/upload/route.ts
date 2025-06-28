@@ -815,7 +815,7 @@ NORMALIZATION INSTRUCTIONS:
 2. For each subject, use your intelligence to match it to the most appropriate canonical subject from the list above
 3. When you see abbreviated or alternative forms (like "えいご", "さんすう", "こく語"), map them to their canonical forms using the aliases provided
 4. Output the CANONICAL subject names in your JSON response, not the raw extracted text
-5. Use the exact canonical subject names from the list above - for elementary grade 1, use hiragana forms like "こくご", "さんすう"
+5. Use the exact canonical subject names from the list above
 6. If no good match exists, preserve the original text
 
 Return a JSON object with the following structure:
@@ -982,7 +982,7 @@ NORMALIZATION INSTRUCTIONS:
 2. For each subject, use your intelligence to match it to the most appropriate canonical subject from the list above
 3. When you see abbreviated or alternative forms (like "えいご", "さんすう", "こく語"), map them to their canonical forms using the aliases provided
 4. Output the CANONICAL subject names in your JSON response, not the raw extracted text
-5. Use the exact canonical subject names from the list above - for elementary grade 1, use hiragana forms like "こくご", "さんすう"
+5. Use the exact canonical subject names from the list above
 6. If no good match exists, preserve the original text
 
 The Excel data is:
