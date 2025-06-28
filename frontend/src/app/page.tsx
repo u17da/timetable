@@ -156,7 +156,7 @@ export default function Home() {
             </div>
 
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                 {weekdays.map((day) => (
                   <div key={day} className="border border-gray-200 rounded-lg overflow-hidden">
                     <div className="bg-gray-100 px-4 py-3 border-b">
